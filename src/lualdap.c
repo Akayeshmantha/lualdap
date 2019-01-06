@@ -352,29 +352,28 @@ static void A_lastattr (lua_State *L, attrs_data *a) {
 ** Copy a string or a table of strings from Lua to a NULL-terminated array
 ** of C-strings.
 */
-static int table2strarray (lua_State *L, int tab, char *array[], int limit) {
+static void table2strarray (lua_State *L, int tab, char *array[], int limit) {
 	if (lua_isstring (L, tab)) {
 		if (limit < 2)
-			return luaL_error (L, LUALDAP_PREFIX"too many arguments");
+			luaL_error (L, LUALDAP_PREFIX"too many arguments");
 		array[0] = (char *)lua_tostring (L, tab);
 		array[1] = NULL;
 	} else if (lua_istable (L, tab)) {
 		int i;
 		int n = lua_rawlen (L, tab);
 		if (limit < (n+1))
-			return luaL_error (L, LUALDAP_PREFIX"too many arguments");
+			luaL_error (L, LUALDAP_PREFIX"too many arguments");
 		for (i = 0; i < n; i++) {
 			lua_rawgeti (L, tab, i+1); /* push table element */
 			if (lua_isstring (L, -1))
 				array[i] = (char *)lua_tostring (L, -1);
 			else {
-				return luaL_error (L, LUALDAP_PREFIX"invalid value #%d", i+1);
+				luaL_error (L, LUALDAP_PREFIX"invalid value #%d", i+1);
 			}
 		}
 		array[n] = NULL;
 	} else 
-		return luaL_error (L, LUALDAP_PREFIX"bad argument #%d (table or string expected, got %s)", tab, lua_typename (L, lua_type (L, tab)));
-	return 0;
+		luaL_error (L, LUALDAP_PREFIX"bad argument #%d (table or string expected, got %s)", tab, lua_typename (L, lua_type (L, tab)));
 }
 
 
@@ -806,7 +805,7 @@ static void create_search (lua_State *L, int conn_index, int msgid) {
 /*
 ** Fill in the attrs array, according to the attrs parameter.
 */
-static int get_attrs_param (lua_State *L, char *attrs[]) {
+static void get_attrs_param (lua_State *L, char *attrs[]) {
 	lua_pushstring (L, "attrs");
 	lua_gettable (L, 2);
 	if (lua_isstring (L, -1)) {
@@ -815,9 +814,7 @@ static int get_attrs_param (lua_State *L, char *attrs[]) {
 	} else if (!lua_istable (L, -1))
 		attrs[0] = NULL;
 	else
-		if (table2strarray (L, lua_gettop (L), attrs, LUALDAP_MAX_ATTRS))
-			return 0;
-	return 1;
+		table2strarray (L, lua_gettop (L), attrs, LUALDAP_MAX_ATTRS);
 }
 
 
@@ -838,8 +835,7 @@ static int lualdap_search (lua_State *L) {
 
 	if (!lua_istable (L, 2))
 		return luaL_error (L, LUALDAP_PREFIX"no search specification");
-	if (!get_attrs_param (L, attrs))
-		return 2;
+	get_attrs_param (L, attrs);
 	/* get other parameters */
 	attrsonly = booltabparam (L, "attrsonly", 0);
 	base = (ldap_pchar_t) strtabparam (L, 2, "base", NULL);
